@@ -207,4 +207,40 @@ describe('AgentSessionContinuationDialog', () => {
       expect.objectContaining({ repoId: 'repo-1', branchName: 'RW-20595', agent: 'codex' })
     )
   })
+
+  it('falls back to this workspace when the repo stops offering worktrees after selection', async () => {
+    mocks.detectAgents.mockResolvedValue(['codex'])
+    mocks.launchContinuation.mockResolvedValue(true)
+    const pending = request('repo-1::/repo/wt', 'RW-20595')
+
+    await act(async () => {
+      root.render(<AgentSessionContinuationDialog open request={pending} onOpenChange={vi.fn()} />)
+    })
+
+    await act(async () => {
+      const destination = container.querySelectorAll('select')[1]
+      destination.value = 'new-worktree'
+      destination.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+
+    // Why: the picker vanishes, but the 'new-worktree' selection it left behind must not launch.
+    mocks.repos = [{ id: 'repo-1', kind: 'folder' }]
+    await act(async () => {
+      root.render(<AgentSessionContinuationDialog open request={pending} onOpenChange={vi.fn()} />)
+    })
+    expect(container.textContent).not.toContain('Destination')
+
+    const startButton = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Start New Session')
+    )
+    await act(async () => {
+      startButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    expect(mocks.launchContinuationInNewWorktree).not.toHaveBeenCalled()
+    expect(mocks.launchContinuation).toHaveBeenCalledWith(
+      expect.objectContaining({ worktreeId: 'repo-1::/repo/wt', agent: 'codex' })
+    )
+    mocks.repos = [{ id: 'repo-1', kind: 'git' }]
+  })
 })

@@ -88,6 +88,9 @@ export function AgentSessionContinuationDialog({
     const repo = sourceRepoId ? repos.find((entry) => entry.id === sourceRepoId) : null
     return Boolean(repo && isGitRepoKind(repo))
   }, [repos, sourceRepoId])
+  // Why: the picker disappears when Git becomes unavailable, but the selection it left behind
+  // would still launch the worktree path.
+  const creatingWorktree = destination === 'new-worktree' && canCreateWorktree
 
   const agents = useMemo(
     () =>
@@ -165,7 +168,7 @@ export function AgentSessionContinuationDialog({
     }
     setStarting(true)
     const launched =
-      destination === 'new-worktree' && sourceRepoId
+      creatingWorktree && sourceRepoId
         ? launchAgentSessionContinuationInNewWorktree({
             agent: selectedAgent,
             prompt,
@@ -195,7 +198,6 @@ export function AgentSessionContinuationDialog({
   const sourceAgentLabel = request?.source.sourceAgent
     ? getAgentLabel(request.source.sourceAgent)
     : null
-  const creatingWorktree = destination === 'new-worktree'
   const startDisabled =
     detecting ||
     starting ||
